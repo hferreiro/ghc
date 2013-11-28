@@ -121,6 +121,8 @@ void initRtsFlagsDefaults(void)
     RtsFlags.GcFlags.doIdleGC           = rtsFalse;
 #endif
 
+    RtsFlags.GcFlags.alwaysMajor        = rtsFalse;
+
 #if osf3_HOST_OS
 /* ToDo: Perhaps by adjusting this value we can make linking without
  * -static work (i.e., not generate a core-dumping executable)? */
@@ -704,6 +706,11 @@ error = rtsTrue;
                       OPTION_SAFE;
                       printRtsInfo();
                       stg_exit(0);
+                  }
+                  else if (strequal("gc-major",
+                               &rts_argv[arg][2])) {
+                      OPTION_UNSAFE;
+                      RtsFlags.GcFlags.alwaysMajor = rtsTrue;
                   }
                   else {
 		      OPTION_SAFE;

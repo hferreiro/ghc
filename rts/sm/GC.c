@@ -214,6 +214,10 @@ GarbageCollect (rtsBool force_major_gc,
   // lock the StablePtr table
   stablePtrPreGC();
 
+  if (RtsFlags.GcFlags.alwaysMajor) {
+      force_major_gc = rtsTrue;
+  }
+
 #ifdef DEBUG
   mutlist_MUTVARS = 0;
   mutlist_MUTARRS = 0;

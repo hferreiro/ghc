@@ -55,6 +55,8 @@ struct GC_FLAGS {
     Time    idleGCDelayTime;    /* units: TIME_RESOLUTION */
     rtsBool doIdleGC;
 
+    rtsBool alwaysMajor;
+
     StgWord heapBase;           /* address to ask the OS for memory */
 };
 
