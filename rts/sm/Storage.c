@@ -951,17 +951,8 @@ W_ countOccupied (bdescr *bd)
     return words;
 }
 
-W_ genLiveWords (generation *gen)
-{
-    return gen->n_words + gen->n_large_words;
-}
-
-W_ genLiveBlocks (generation *gen)
-{
-    return gen->n_blocks + gen->n_large_blocks;
-}
-
-W_ gcThreadLiveWords (nat i, nat g)
+static W_
+gcThreadLiveWords (nat i, nat g)
 {
     W_ words;
 
@@ -972,7 +963,8 @@ W_ gcThreadLiveWords (nat i, nat g)
     return words;
 }
 
-W_ gcThreadLiveBlocks (nat i, nat g)
+static W_
+gcThreadLiveBlocks (nat i, nat g)
 {
     W_ blocks;
 
@@ -980,6 +972,34 @@ W_ gcThreadLiveBlocks (nat i, nat g)
     blocks += gc_threads[i]->gens[g].n_part_blocks;
     blocks += gc_threads[i]->gens[g].n_scavd_blocks;
 
+    return blocks;
+}
+
+W_ genLiveWords (generation *gen)
+{
+    W_ words;
+    nat i;
+
+    words = gen->n_words + gen->n_large_words;
+    for (i = 0; i < n_capabilities; i++) {
+        words += gcThreadLiveWords(i, gen->no);
+    }
+
+    // TODO: pinned block
+    return words;
+}
+
+W_ genLiveBlocks (generation *gen)
+{
+    W_ blocks;
+    nat i;
+
+    blocks = gen->n_blocks + gen->n_large_blocks;
+    for (i = 0; i < n_capabilities; i++) {
+        blocks += gcThreadLiveBlocks(i, gen->no);
+    }
+
+    // TODO: pinned block
     return blocks;
 }
 

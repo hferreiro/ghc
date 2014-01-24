@@ -899,9 +899,6 @@ statDescribeGens(void)
               gen_live   += bd->free - bd->start;
               gen_blocks += bd->blocks;
           }
-
-          gen_live   += gcThreadLiveWords(i,g);
-          gen_blocks += gcThreadLiveBlocks(i,g);
       }
 
       debugBelch("%5d %7" FMT_Word " %9d", g, (W_)gen->max_blocks, mut);

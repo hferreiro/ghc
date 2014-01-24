@@ -615,16 +615,6 @@ GarbageCollect (rtsBool force_major_gc,
     // Count "live" data
     live_words  += genLiveWords(gen);
     live_blocks += genLiveBlocks(gen);
-
-    // add in the partial blocks in the gen_workspaces, but ignore gen 0
-    // if this is a local GC (we can't count another capability's part_list)
-    {
-        nat i;
-        for (i = 0; i < n_capabilities; i++) {
-            live_words  += gcThreadLiveWords(i, gen->no);
-            live_blocks += gcThreadLiveBlocks(i, gen->no);
-        }
-    }
   } // for all generations
 
   // update the max size of older generations after a major GC

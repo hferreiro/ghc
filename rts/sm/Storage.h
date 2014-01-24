@@ -95,9 +95,6 @@ W_    countLargeAllocated  (void);
 W_    countOccupied  (bdescr *bd);
 W_    calcNeeded     (void);
 
-W_    gcThreadLiveWords  (nat i, nat g);
-W_    gcThreadLiveBlocks (nat i, nat g);
-
 W_    genLiveWords  (generation *gen);
 W_    genLiveBlocks (generation *gen);
 
