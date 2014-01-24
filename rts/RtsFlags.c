@@ -122,6 +122,7 @@ void initRtsFlagsDefaults(void)
 #endif
 
     RtsFlags.GcFlags.alwaysMajor        = rtsFalse;
+    RtsFlags.GcFlags.resizeNursery      = 0;
 
 #if osf3_HOST_OS
 /* ToDo: Perhaps by adjusting this value we can make linking without
@@ -711,6 +712,12 @@ error = rtsTrue;
                                &rts_argv[arg][2])) {
                       OPTION_UNSAFE;
                       RtsFlags.GcFlags.alwaysMajor = rtsTrue;
+                  }
+                  else if (strncmp("gc-resize",
+                               &rts_argv[arg][2], 9) == 0) {
+                      OPTION_UNSAFE;
+                      RtsFlags.GcFlags.resizeNursery
+                          = decodeSize(rts_argv[arg], 11, 1, 100);
                   }
                   else {
 		      OPTION_SAFE;

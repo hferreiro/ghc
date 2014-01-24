@@ -56,6 +56,7 @@ struct GC_FLAGS {
     rtsBool doIdleGC;
 
     rtsBool alwaysMajor;
+    nat     resizeNursery;
 
     StgWord heapBase;           /* address to ask the OS for memory */
 };
