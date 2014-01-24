@@ -51,6 +51,13 @@ STATIC_INLINE void evacuate_large(StgPtr p);
    Allocate some space in which to copy an object.
    -------------------------------------------------------------------------- */
 
+#if defined(THREADED_RTS) && !defined(PARALLEL_GC)
+#define promoted_objects promoted_objects1
+#define promoted_words promoted_words1
+#endif
+W_ promoted_objects = 0;
+W_ promoted_words = 0;
+
 STATIC_INLINE StgPtr
 alloc_for_copy (nat size, nat gen_no)
 {
@@ -64,6 +71,8 @@ alloc_for_copy (nat size, nat gen_no)
      */
     if (gen_no < gct->evac_gen_no) {
 	if (gct->eager_promotion) {
+            promoted_objects++;
+            promoted_words += size;
             gen_no = gct->evac_gen_no;
 	} else {
 	    gct->failed_to_evac = rtsTrue;

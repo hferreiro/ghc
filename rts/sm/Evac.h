@@ -37,6 +37,11 @@ REGPARM1 void evacuate1 (StgClosure **p);
 
 extern W_ thunk_selector_depth;
 
+extern W_ promoted_objects;
+extern W_ promoted_words;
+extern W_ promoted_objects1;
+extern W_ promoted_words1;
+
 #include "EndPrivate.h"
 
 #endif /* SM_EVAC_H */

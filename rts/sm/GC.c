@@ -47,6 +47,7 @@
 #include "GCUtils.h"
 #include "MarkStack.h"
 #include "MarkWeak.h"
+#include "NurseryResize.h"
 #include "Sparks.h"
 #include "Sweep.h"
 
@@ -651,6 +652,9 @@ GarbageCollect (rtsBool force_major_gc,
   allocated += nursery_alloc;
 
   resize_nursery();
+
+  promoted_objects = 0;
+  promoted_words = 0;
 
   resetNurseries();
 
@@ -1750,11 +1754,17 @@ resize_nursery (void)
 	        blocks =
                     ((suggested - needed) * 100) / (100 + g0_pcnt_kept);
             }
+	} else if (RtsFlags.GcFlags.resizeNursery > 0) {
+            blocks = dynamicResize(RtsFlags.GcFlags.resizeNursery);
 	}
     }
 
     if (blocks < min_nursery) {
         blocks = min_nursery;
+    }
+    // FIXME: do not go over 1GiB
+    if (blocks * BLOCK_SIZE > 1 * 1000 * 1000000) {
+        blocks = lround((1 * 1000 * 1000000) / BLOCK_SIZE);
     }
     large_alloc_lim = blocks * BLOCK_SIZE_W;
     resizeNurseries(blocks);

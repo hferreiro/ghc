@@ -80,6 +80,8 @@ void dirty_MVAR(StgRegTable *reg, StgClosure *p);
 
 extern nursery *nurseries;
 
+extern W_ nursery_size;
+
 void     resetNurseries       ( void );
 W_       clearNursery         ( Capability *cap );
 void     resizeNurseries      ( W_ blocks );

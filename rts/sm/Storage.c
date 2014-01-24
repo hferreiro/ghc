@@ -52,6 +52,8 @@ generation *oldest_gen  = NULL; /* oldest generation, for convenience */
 
 nursery *nurseries = NULL;     /* array of nurseries, size == n_capabilities */
 
+W_ nursery_size = 0;
+
 #ifdef THREADED_RTS
 /*
  * Storage manager mutex:  protects all the above state from
@@ -492,11 +494,13 @@ allocNurseries (nat from, nat to)
 { 
     nat i;
 
+    nursery_size = 0;
     for (i = from; i < to; i++) {
         nurseries[i].blocks =
             allocNursery(NULL, RtsFlags.GcFlags.minAllocAreaSize);
         nurseries[i].n_blocks =
             RtsFlags.GcFlags.minAllocAreaSize;
+        nursery_size += nurseries[i].n_blocks;
     }
     assignNurseriesToCapabilities(from, to);
 }
@@ -584,8 +588,10 @@ void
 resizeNurseriesFixed (W_ blocks)
 {
     nat i;
+    nursery_size = 0;
     for (i = 0; i < n_capabilities; i++) {
         resizeNursery(&nurseries[i], blocks);
+        nursery_size += blocks;
     }
 }
 
