@@ -125,7 +125,7 @@ StgWord8 the_gc_thread[sizeof(gc_thread) + 64 * sizeof(gen_workspace)];
 nat n_gc_threads;
 
 // For stats:
-long copied;        // *words* copied & scavenged during this GC
+W_ copied;        // *words* copied & scavenged during this GC
 
 rtsBool work_stealing;
 
@@ -1662,10 +1662,12 @@ resize_nursery (void)
 {
     const StgWord min_nursery = RtsFlags.GcFlags.minAllocAreaSize * n_capabilities;
 
+    // we might have added extra large blocks to the nursery, so
+    // resize back to minAllocAreaSize again.
+    W_ blocks = RtsFlags.GcFlags.minAllocAreaSize * n_capabilities;
+
     if (RtsFlags.GcFlags.generations == 1)
     {   // Two-space collector:
-        W_ blocks;
-    
 	/* set up a new nursery.  Allocate a nursery size based on a
 	 * function of the amount of live data (by default a factor of 2)
 	 * Use the blocks from the old nursery if possible, freeing up any
@@ -1704,12 +1706,7 @@ resize_nursery (void)
 	else
 	{
 	    blocks *= RtsFlags.GcFlags.oldGenFactor;
-	    if (blocks < min_nursery)
-	    {
-		blocks = min_nursery;
-	    }
 	}
-	resizeNurseries(blocks);
     }
     else  // Generational collector
     {
@@ -1717,12 +1714,12 @@ resize_nursery (void)
 	 * If the user has given us a suggested heap size, adjust our
 	 * allocation area to make best use of the memory available.
 	 */
-	if (RtsFlags.GcFlags.heapSizeSuggestion)
+        const W_ suggested = RtsFlags.GcFlags.heapSizeSuggestion;
+	if (suggested > 0)
 	{
-	    long blocks;
-	    const nat needed = calcNeeded(); 	// approx blocks needed at next GC 
+	    const W_ needed = calcNeeded(); 	// approx blocks needed at next GC
 	    
-	    /* Guess how much will be live in generation 0 step 0 next time.
+	    /* Guess how much will be live in the nursery next time.
 	     * A good approximation is obtained by finding the
 	     * percentage of g0 that was live at the last minor GC.
 	     *
@@ -1747,25 +1744,20 @@ resize_nursery (void)
 	     *                    1 + g0_pcnt_kept/100
 	     *
 	     * where 'needed' is the amount of memory needed at the next
-	     * collection for collecting all gens except g0.
+	     * collection except for the nursery.
 	     */
-	    blocks = 
-		(((long)RtsFlags.GcFlags.heapSizeSuggestion - (long)needed) * 100) /
-		(100 + (long)g0_pcnt_kept);
-	    
-	    if (blocks < (long)min_nursery) {
-		blocks = min_nursery;
-	    }
-	    
-            resizeNurseries((W_)blocks);
-	}
-	else
-	{
-	    // we might have added extra large blocks to the nursery, so
-	    // resize back to minAllocAreaSize again.
-	    resizeNurseriesFixed(RtsFlags.GcFlags.minAllocAreaSize);
+            if (suggested > needed) {
+	        blocks =
+                    ((suggested - needed) * 100) / (100 + g0_pcnt_kept);
+            }
 	}
     }
+
+    if (blocks < min_nursery) {
+        blocks = min_nursery;
+    }
+    large_alloc_lim = blocks * BLOCK_SIZE_W;
+    resizeNurseries(blocks);
 }
 
 /* -----------------------------------------------------------------------------
