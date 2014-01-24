@@ -170,6 +170,9 @@ StgPtr mark_sp;            // pointer to the next unallocated mark stack entry
    Locks held: all capabilities are held throughout GarbageCollect().
    -------------------------------------------------------------------------- */
 
+W_ nursery_alloc = 0;
+W_ mut_list_size = 0;
+
 void
 GarbageCollect (rtsBool force_major_gc, 
                 rtsBool do_heap_census,
@@ -178,7 +181,7 @@ GarbageCollect (rtsBool force_major_gc,
 {
   bdescr *bd;
   generation *gen;
-  StgWord live_blocks, live_words, allocated, par_max_copied, par_tot_copied;
+  StgWord live_blocks, live_words, pinned_alloc, allocated, par_max_copied, par_tot_copied;
 #if defined(THREADED_RTS)
   gc_thread *saved_gct;
 #endif
@@ -292,7 +295,8 @@ GarbageCollect (rtsBool force_major_gc,
 
   // gather blocks allocated using allocatePinned() from each capability
   // and put them on the g0->large_object list.
-  allocated += collect_pinned_object_blocks();
+  pinned_alloc = collect_pinned_object_blocks();
+  allocated += pinned_alloc;
 
   // Initialise all the generations/steps that we're collecting.
   for (g = 0; g <= N; g++) {
@@ -490,16 +494,23 @@ GarbageCollect (rtsBool force_major_gc,
     // Count the mutable list as bytes "copied" for the purposes of
     // stats.  Every mutable list is copied during every GC.
     if (g > 0) {
-        W_ mut_list_size = 0;
+        mut_list_size = 0;
         for (n = 0; n < n_capabilities; n++) {
             mut_list_size += countOccupied(capabilities[n].mut_lists[g]);
         }
+
 	copied +=  mut_list_size;
 
 	debugTrace(DEBUG_gc,
 		   "mut_list_size: %lu (%d vars, %d arrays, %d MVARs, %d others)",
 		   (unsigned long)(mut_list_size * sizeof(W_)),
 		   mutlist_MUTVARS, mutlist_MUTARRS, mutlist_MVARS, mutlist_OTHERS);
+    } else {
+        mut_list_size = 0;
+        for (n = 0; n < n_capabilities; n++) {
+            mut_list_size += countOccupied(capabilities[n].mut_lists[g]);
+        }
+        ASSERT(mut_list_size == 0);
     }
 
     bdescr *next, *prev;
@@ -636,16 +647,18 @@ GarbageCollect (rtsBool force_major_gc,
   }
 
   // Reset the nursery: make the blocks empty
+  nursery_alloc = 0;
   if (n_gc_threads == 1) {
       for (n = 0; n < n_capabilities; n++) {
-          allocated += clearNursery(&capabilities[n]);
+          nursery_alloc += clearNursery(&capabilities[n]);
       }
   } else {
       gct->allocated = clearNursery(cap);
       for (n = 0; n < n_capabilities; n++) {
-          allocated += gc_threads[n]->allocated;
+          nursery_alloc += gc_threads[n]->allocated;
       }
   }
+  allocated += nursery_alloc;
 
   resize_nursery();
 
@@ -1454,6 +1467,8 @@ collect_gct_blocks (void)
    purposes.
    -------------------------------------------------------------------------- */
 
+W_ pinned_object_blocks = 0;
+
 static StgWord
 collect_pinned_object_blocks (void)
 {
@@ -1461,9 +1476,11 @@ collect_pinned_object_blocks (void)
     bdescr *bd, *prev;
     StgWord allocated = 0;
 
+    pinned_object_blocks = 0;
     for (n = 0; n < n_capabilities; n++) {
         prev = NULL;
         for (bd = capabilities[n].pinned_object_blocks; bd != NULL; bd = bd->link) {
+            pinned_object_blocks++;
             allocated += bd->free - bd->start;
             prev = bd;
         }

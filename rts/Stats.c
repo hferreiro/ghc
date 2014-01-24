@@ -173,8 +173,8 @@ initStats1 (void)
     nat i;
   
     if (RtsFlags.GcFlags.giveStats >= VERBOSE_GC_STATS) {
-	statsPrintf("    Alloc    Copied     Live    GC    GC     TOT     TOT  Page Flts\n");
-	statsPrintf("    bytes     bytes     bytes  user  elap    user    elap\n");
+	statsPrintf("  Nursery     Alloc    Copied     Live        GC       MUT       TOT\n");
+	statsPrintf("    bytes     bytes     bytes     bytes      user      user      elap\n");
     }
     GC_coll_cpu = 
 	(Time *)stgMallocBytes(
@@ -205,10 +205,16 @@ stat_startInit(void)
     getProcessTimes(&start_init_cpu, &start_init_elapsed);
 }
 
+Time gc_end_cpu = 0;
+Time gc_end_elapsed = 0;
+
 void 
 stat_endInit(void)
 {
     getProcessTimes(&end_init_cpu, &end_init_elapsed);
+
+    gc_end_cpu = end_init_cpu;
+    gc_end_elapsed = end_init_elapsed;
 
 #if USE_PAPI
     /* We start counting events for the mutator
@@ -347,7 +353,7 @@ stat_endGC (Capability *cap, gc_thread *gct,
         RtsFlags.ProfFlags.doHeapProfile)
         // heap profiling needs GC_tot_time
     {
-        Time cpu, elapsed, gc_cpu, gc_elapsed;
+        Time mut_cpu, mut_elapsed, gc_cpu, gc_elapsed;
 
         // Has to be emitted while all caps stopped for GC, but before GC_END.
         // See trac.haskell.org/ThreadScope/wiki/RTSsummaryEvents
@@ -368,32 +374,34 @@ stat_endGC (Capability *cap, gc_thread *gct,
                           par_max_copied * sizeof(W_),
                           par_tot_copied * sizeof(W_));
 
-        getProcessTimes(&cpu, &elapsed);
+        ASSERT(gc_end_cpu != 0 && gc_end_elapsed != 0);
+        mut_cpu = gct->gc_start_cpu - gc_end_cpu;
+        mut_elapsed  = gct->gc_start_elapsed - gc_end_elapsed;
+
+        getProcessTimes(&gc_end_cpu, &gc_end_elapsed);
 
         // Post EVENT_GC_END with the same timestamp as used for stats
         // (though converted from Time=StgInt64 to EventTimestamp=StgWord64).
         // Here, as opposed to other places, the event is emitted on the cap
         // that initiates the GC and external tools expect it to have the same
         // timestamp as used in +RTS -s calculcations.
-        traceEventGcEndAtT(cap, TimeToNS(elapsed - start_init_elapsed));
+        traceEventGcEndAtT(cap, TimeToNS(gc_end_elapsed - start_init_elapsed));
 
-        gc_elapsed = elapsed - gct->gc_start_elapsed;
-        gc_cpu = cpu - gct->gc_start_cpu;
+        gc_cpu = gc_end_cpu - gct->gc_start_cpu;
+        gc_elapsed = gc_end_elapsed - gct->gc_start_elapsed;
 
         if (RtsFlags.GcFlags.giveStats == VERBOSE_GC_STATS) {
 	    W_ faults = getPageFaults();
 	    
-	    statsPrintf("%9" FMT_SizeT " %9" FMT_SizeT " %9" FMT_SizeT,
-		    alloc*sizeof(W_), copied*sizeof(W_), 
-			live*sizeof(W_));
-            statsPrintf(" %5.2f %5.2f %7.2f %7.2f %4" FMT_Word " %4" FMT_Word "  (Gen: %2d)\n",
-                    TimeToSecondsDbl(gc_cpu),
-		    TimeToSecondsDbl(gc_elapsed),
-		    TimeToSecondsDbl(cpu),
-		    TimeToSecondsDbl(elapsed - start_init_elapsed),
-		    faults - gct->gc_start_faults,
-                        gct->gc_start_faults - GC_end_faults,
-                    gen);
+            //nursery_alloc = clearNursery(i);
+            //alloc = countLargeAllocated() + collect_pinned_object_blocks()
+            //          + clearNursery(i)
+            statsPrintf("%9" FMT_SizeT " %9" FMT_SizeT " %9" FMT_SizeT " %9" FMT_SizeT,
+              nursery_alloc*sizeof(W_), alloc*sizeof(W_),
+              (copied-mut_list_size)*sizeof(W_), live*sizeof(W_));
+            statsPrintf(" %9" FMT_Int64 " %9" FMT_Int64 " %9" FMT_Int64 "  (gen: %2d)\n",
+              TimeToNS(gc_elapsed), TimeToNS(mut_elapsed),
+              TimeToNS(gc_end_elapsed - start_init_elapsed), gen);
 
             GC_end_faults = faults;
 	    statsFlush();

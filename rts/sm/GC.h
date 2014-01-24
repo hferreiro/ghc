@@ -33,6 +33,8 @@ extern bdescr *mark_stack_top_bd;
 extern StgPtr mark_sp;
 
 extern long copied;
+extern W_ nursery_alloc;
+extern W_ mut_list_size;
 
 extern rtsBool work_stealing;
 

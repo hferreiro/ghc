@@ -24,6 +24,9 @@
 
 struct gc_thread_;
 
+extern Time gc_end_cpu;
+extern Time gc_end_elapsed;
+
 void      stat_startInit(void);
 void      stat_endInit(void);
 
