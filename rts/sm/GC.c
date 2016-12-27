@@ -172,6 +172,7 @@ StgPtr mark_sp;            // pointer to the next unallocated mark stack entry
    -------------------------------------------------------------------------- */
 
 W_ nursery_alloc = 0;
+W_ nursery_alloc_total = 0;
 W_ mut_list_size = 0;
 
 void
@@ -526,6 +527,7 @@ GarbageCollect (rtsBool force_major_gc,
 	 */
         if (gen->mark)
         {
+            barf("gen->mark");
             // tack the new blocks on the end of the existing blocks
             if (gen->old_blocks != NULL) {
                 
@@ -649,7 +651,10 @@ GarbageCollect (rtsBool force_major_gc,
           nursery_alloc += gc_threads[n]->allocated;
       }
   }
+  nursery_alloc_total += nursery_alloc;
   allocated += nursery_alloc;
+
+  checkGcInvariants();
 
   resize_nursery();
 
@@ -728,6 +733,7 @@ GarbageCollect (rtsBool force_major_gc,
       /* If the amount of data remains constant, next major GC we'll
          require (F+1)*need. We leave (F+2)*need in order to reduce
          repeated deallocation and reallocation. */
+      // TODO: try F+1 because F=2
       need = (RtsFlags.GcFlags.oldGenFactor + 2) * need;
       if (got > need) {
           returnMemoryToOS(got - need);
@@ -1487,6 +1493,10 @@ collect_pinned_object_blocks (void)
             capabilities[n].pinned_object_blocks = 0;
         }
     }
+#ifdef DEBUG
+    ASSERT(allocated == hf_pinned_words);
+    if (allocated > 0) fprintf(stderr, "collect_pinned_object_blocks %ld\n", allocated);
+#endif
 
     return allocated;
 }

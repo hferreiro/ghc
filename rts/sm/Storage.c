@@ -167,6 +167,7 @@ initStorage (void)
   }
 
   generations[0].max_blocks = 0;
+  //generations[RtsFlags.GcFlags.generations-1].max_blocks = RtsFlags.GcFlags.minOldGenSize;
 
   weak_ptr_list = NULL;
   caf_list = END_OF_STATIC_LIST;
@@ -742,6 +743,10 @@ allocate (Capability *cap, W_ n)
    fills the allocated memory with a MutableByteArray#.
    ------------------------------------------------------------------------- */
 
+#ifdef DEBUG
+W_ hf_pinned_words = 0;
+#endif
+
 StgPtr
 allocatePinned (Capability *cap, W_ n)
 {
@@ -771,6 +776,9 @@ allocatePinned (Capability *cap, W_ n)
         if (bd != NULL) {
             dbl_link_onto(bd, &cap->pinned_object_blocks);
             cap->total_allocated += bd->free - bd->start;
+#ifdef DEBUG
+            hf_pinned_words += bd->free - bd->start;
+#endif
         }
 
         // We need to find another block.  We could just allocate one,

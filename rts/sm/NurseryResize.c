@@ -23,6 +23,8 @@ static W_ copiedRateNew (int pctn, W_ copied, double I);
 //static W_ copiedRateFixed (Time last_time, double P, int times);
 static W_ staticNursery(W_ blocks, W_ copied);
 
+extern W_ nursery_alloc_total;
+
 W_
 dynamicResize (int algorithm)
 {
@@ -69,7 +71,14 @@ dynamicResize (int algorithm)
             barf("Unknown nursery resize algorithm %d", algorithm);
         }
         if (graph > 0) {
-            fprintf(stderr, "%" FMT_Word "\n", blocks * BLOCK_SIZE);
+            if (blocks * BLOCK_SIZE > 1 * 1000 * 1000000) {
+                fprintf(stderr, "%" FMT_Word " ", (W_)1 * 1000 * 1000000);
+            } else if (blocks < RtsFlags.GcFlags.minAllocAreaSize * n_capabilities) {
+                fprintf(stderr, "%" FMT_Word " ", (W_)RtsFlags.GcFlags.minAllocAreaSize * n_capabilities * BLOCK_SIZE);
+            } else {
+                fprintf(stderr, "%" FMT_Word " ", blocks * BLOCK_SIZE);
+            }
+            fprintf(stderr, "%" FMT_Word "\n", nursery_alloc_total * sizeof(W_));
         }
     }
 
@@ -121,7 +130,7 @@ dynamicPN (Time last_time, W_ copied, double P, double I_, int n0_tot_times)
     time_rate = (double)(now - last_time) / nursery_alloc;
 
     if (graph > 0) {
-        fprintf(stderr, "%f ", time_rate);
+        fprintf(stderr, "%ld ", now - last_time);
     }
 
     rate = (double)nursery_alloc / copied;
@@ -715,7 +724,7 @@ dynamicPNRate (Time last_time, W_ copied, double P, double I_, int n0_tot_times)
     real_rate = (double)nursery_alloc / copied;
 
     if (graph > 0) {
-        fprintf(stderr, "%f %f ", time_rate, real_rate);
+        fprintf(stderr, "%ld %f %ld ", now - last_time, real_rate, copied * sizeof(W_));
     }
 
 
@@ -881,7 +890,7 @@ staticNursery(W_ blocks, W_ copied)
     real_rate = (double)nursery_alloc / copied;
 
     if (graph > 0) {
-        fprintf(stderr, "%f %f ", time_rate, real_rate);
+        fprintf(stderr, "%ld %f %ld ", now - gc_end_cpu, real_rate, copied);
     }
 
     return blocks;

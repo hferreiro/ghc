@@ -92,6 +92,10 @@ W_       countNurseryBlocks   ( void );
    Stats 'n' DEBUG stuff
    -------------------------------------------------------------------------- */
 
+#ifdef DEBUG
+extern W_ hf_pinned_words;
+#endif
+
 W_    updateNurseriesStats (void);
 W_    countLargeAllocated  (void);
 W_    countOccupied  (bdescr *bd);
